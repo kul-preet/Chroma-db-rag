@@ -1,0 +1,16 @@
+COMPANY: TechLearn India
+ABOUT: TechLearn India is an online education platform offering technology courses to students across India.
+
+REFUND POLICY: Customers can request a full refund within 30 days of purchase. After 30 days, no refunds are issued. To request a refund, email support@techlearn.in with your order ID.
+
+WORKING HOURS: Our support team is available Monday to Friday, 9 AM to 6 PM IST. We are closed on public holidays.
+
+COURSES OFFERED: We offer courses in Machine Learning, Web Development, Data Science, and Cloud Computing. Each course includes lifetime access and a certificate of completion.
+
+PRICING: Machine Learning course costs Rs 4999. Web Development course costs Rs 3999. Data Science course costs Rs 5999. Cloud Computing course costs Rs 4499. All prices are inclusive of GST.
+
+CONTACT: Email us at support@techlearn.in or call us at +91-9876543210. Our office is located in Chandigarh, India.
+
+ENROLLMENT: To enroll in a course, visit our website at www.techlearn.in, select your course, and complete the payment. You will get instant access after payment confirmation.
+
+CERTIFICATE: Certificates are issued after completing all modules and passing the final assessment with a minimum score of 60%.
