@@ -29,7 +29,6 @@ CHROMA_DB_PATH =  "./chroma_db"
 #------------COLLECTION-----------------
 #This is the name of collection, same as the name of Table in SQL
 COLLECTION_NAME = "techlearn_knowledge"
-
 MODEL = "llama-3.3-70b-versatile"
 
 #---------------------GROQ CLIENT----------------------
@@ -107,12 +106,12 @@ def build_prompt(question, chunks):
     
     prompt = f"""You are a helpful assistant. Use the following knowledge to answer the question. If you don't know the answer, say you don't know.
 
-Context: {context}
+    Context: {context}
 
-Customer Question: {question}
+    Customer Question: {question}
 
-Answer: """
-    return prompt
+    Answer: """
+        return prompt
     
     
 #---------------------generate answer----------------------
