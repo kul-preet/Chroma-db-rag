@@ -1,0 +1,9 @@
+course_name,price,duration,level,rating,instructor,enrolled_students
+Machine Learning,4999,3 months,Intermediate,4.8,Dr. Rajesh Kumar,12500
+Web Development,3999,2 months,Beginner,4.6,Priya Sharma,18200
+Data Science,5999,4 months,Intermediate,4.7,Dr. Amit Verma,9800
+Cloud Computing,4499,2.5 months,Beginner,4.5,Rohit Gupta,7600
+Python Basics,2999,1 month,Beginner,4.9,Neha Singh,25000
+Deep Learning,6999,4 months,Advanced,4.7,Dr. Rajesh Kumar,4200
+DevOps,5499,3 months,Intermediate,4.6,Vikram Nair,5800
+Cybersecurity,5999,3 months,Advanced,4.5,Arjun Mehta,3900
