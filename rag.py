@@ -56,6 +56,15 @@ client = Groq(api_key = os.environ.get("GROQ_API_KEY"))
 embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name = "all-MiniLM-L6-v2")
 
 
+#--------------------CHUNK TEXT----------------------------
+def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    
+'''
+splits the contionious text into overlapping chunks
+tries to split the sentance from (.) then words
+'''
+
+
 #--------------------FILE READER----------------------------
 def read_txt(filepath):
     '''Reads a plain text file and chunks it smartly
