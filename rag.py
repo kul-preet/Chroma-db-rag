@@ -114,7 +114,7 @@ def read_txt(filepath):
     1.WHAT :- read the .txt file and chunks it smartly
     2.RETURNS :- list of (chunks_text, metadata_dict)
     '''
-    filename = os.path.basename(filename)
+    filename = os.path.basename(filepath)
     print(f"Reading text:{filename}")
     
     with open(filepath, "r", encoding="utf-8") as f:
@@ -405,7 +405,7 @@ def Load_all_docs(collection):
         
         collection.add(
             documents = batch_chunks,
-            metadata = batch_metadata,
+            metadatas = batch_metadata,
             ids = batch_ids
         )
         print(f"  Stored batch {i//batch_size + 1} ({len(batch_chunks)} chunks)")
@@ -425,18 +425,18 @@ def retrieve(question, collection, top_k = 3):
     )
     
     chunks = results["documents"][0]
-    metadata = results["metadata"][0]
-    return chunks,metadata
+    metadatas = results["metadatas"][0]
+    return chunks,metadatas
 
 
 #---------------------build prompt with context-----------------------
-def build_prompt(question, chunks, metadata):
+def build_prompt(question, chunks, metadatas):
     # Build prompt with context and souce information
     # Each chunk is labelled with its source file so that llm can site it.
     
     context_parts = []
     
-    for chunk,metadata in zip(chunks, metadata):  #zip, pairs the elements of both lists
+    for chunk,metadata in zip(chunks, metadatas):  #zip, pairs the elements of both lists
         source = metadata.get("source", "unknown")
         file_type = metadata.get("file_type", "unknown")
         
@@ -477,17 +477,16 @@ def ask(question,collection):
     give it to  llm
     return answer'''
     print(f"Getting the relavant chunks from the ChromaDB for the question")
-    chunks,metadata = retrieve(question, collection)
+    chunks,metadatas = retrieve(question, collection)
     
-    print(f"found {len(relavant_chunks)} relavant chunks, building prompt")
-    for i, (chunk,meta) in enumerate(zip(chunks,metadata)):
+    for i, (chunk,meta) in enumerate(zip(chunks,metadatas)):
         print(f"  [{i+1}] {meta['source']} | {chunk[:50]}...")
         
         
-    prompt = build_prompt(question, chunks, metadata)
+    prompt = build_prompt(question, chunks, metadatas)
     
     #sending to llm
-    response = groq_client.chat.completions.create(
+    response = client.chat.completions.create(
         model=MODEL,
         messages=[
             {
@@ -503,6 +502,7 @@ def ask(question,collection):
         max_tokens=512
     )
     answer = response.choices[0].message.content
+    return answer
 
 
 def main():
