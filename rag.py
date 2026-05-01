@@ -8,7 +8,7 @@ from chromadb.utils import embedding_functions
 #--------------------For reading libraries----------------------
 import pandas as pd                 #For reading CSV and excel files
 from pypdf import PdfReader         #For reading PDF files
-from docs import Document           #For word files
+from docx import Document           #For word files
 
 
 #-----------------------for smart chunking--------------------
@@ -56,13 +56,56 @@ client = Groq(api_key = os.environ.get("GROQ_API_KEY"))
 embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(model_name = "all-MiniLM-L6-v2")
 
 
-#--------------------CHUNK TEXT----------------------------
+#--------------------SMART TEXT CHUNKING ----------------------------
 def chunk_text(text, chunk_size=CHUNK_SIZE, overlap=CHUNK_OVERLAP):
+    '''
+    splits the contionious text into overlapping chunks
+    tries to split the sentance from (.) then words
+    '''
+    #step 1 :- clean the text
+    #replace the multiple spaces/newlines with single space
+    text = re.sub(r'\s+','',text).strip()
     
-'''
-splits the contionious text into overlapping chunks
-tries to split the sentance from (.) then words
-'''
+    #if text is smaller than chunk_size - return as single chunk
+    if len(text) <= CHUNK_SIZE:
+        return[text]
+    
+    chunks = []
+    start = 0
+    #here first find the starting and ending index in the chunk and then 
+    #extract the chunk on the basis of starting and ending index
+    while start < len(text):
+        end = start+chunk_size
+        #if we haven't reached the end yet
+        if end < len(text):
+            #trying to find the last sentance ending (.)
+            #to prevent the text from cutting from middle
+            last_period = text.rfind('.',start,end) #finding last occurence of (.) from start to end
+            
+            if last_period != -1  and last_period > start + (chunk_size // 2):
+                #we got the text in second half
+                # cut from there instead of exact chunk size
+                end = last_period + 1
+            else:
+                last_space = text.rfind(' ',start,end)
+                if last_space != -1:
+                    end = last_space
+        #extracting chunk
+        chunk = text[start:end].strip()
+        
+        #only add non empty chunks
+        if chunk :
+            chunks.append(chunk)            
+        
+        #moving start bid backward for overlapping
+        start = end - overlap
+        
+        if start >= end:
+            start = end
+            
+            
+    return chunks
+                
 
 
 #--------------------FILE READER----------------------------
@@ -106,7 +149,7 @@ def read_pdf(filepath):
     
     reader = PdfReader(filepath)
     results = []
-    chunk-index = 0
+    chunk_index = 0
     
     for page_num, page in enumerate(reader.pages):
         #extracting text from the page
@@ -344,8 +387,8 @@ def Load_all_docs(collection):
         for text,metadata in file_chunks:
             all_chunks.append(text)
             all_metadata.append(metadata)
-            all_ids.append(str(global_id))
-            all_ids += 1
+            all_ids.append(f"chunk_{global_id}")
+            global_id += 1
             
     if not all_chunks:
         print(f"No chunks found for this question in this folder")
@@ -361,8 +404,8 @@ def Load_all_docs(collection):
         batch_ids = all_ids[i : i+batch_size]
         
         collection.add(
-            documents = batch_chunks
-            metadata = batch_metadata
+            documents = batch_chunks,
+            metadata = batch_metadata,
             ids = batch_ids
         )
         print(f"  Stored batch {i//batch_size + 1} ({len(batch_chunks)} chunks)")
@@ -387,19 +430,44 @@ def retrieve(question, collection, top_k = 3):
 
 
 #---------------------build prompt with context-----------------------
-def build_prompt(question, chunks):
-    #combines the question and chunks and build a prompt for the language model
+def build_prompt(question, chunks, metadata):
+    # Build prompt with context and souce information
+    # Each chunk is labelled with its source file so that llm can site it.
     
-    context = "\n\n".join(chunks)
+    context_parts = []
     
-    prompt = f"""You are a helpful assistant. Use the following knowledge to answer the question. If you don't know the answer, say you don't know.
+    for chunk,metadata in zip(chunks, metadata):  #zip, pairs the elements of both lists
+        source = metadata.get("source", "unknown")
+        file_type = metadata.get("file_type", "unknown")
+        
+        #add extra location info based on file type
+        if file_type == "pdf":
+            location = f"Page {metadata.get('page', '?')}"
+        elif file_type in ["csv", "excel"]:
+            location = f"Row {metadata.get('row', '?')}"
+        elif file_type == "docx":
+            location = f"Paragraph {metadata.get('paragraph', '?')}"
+        else:
+            location = f"Paragraph {metadata.get('paragraph', '?')}"
+            
+        # Format: [Source: policy.pdf, Page 2]
+        source_label = f"[Source: {source}, {location}]"
 
+        context_parts.append(f"{source_label}\n{chunk}")
+ 
+        
+    context = "\n\n".join(context_parts)
+    
+    prompt = f"""You are a helpful assistant for TechLearn India.
+    Use the following context to answer the question.
+    Always mention which source/file the information came from.
+    If the answer is not in the context say "I don't have that information."
     Context: {context}
 
     Customer Question: {question}
 
     Answer: """
-        return prompt
+    return prompt
     
     
 #---------------------generate answer----------------------
@@ -409,28 +477,32 @@ def ask(question,collection):
     give it to  llm
     return answer'''
     print(f"Getting the relavant chunks from the ChromaDB for the question")
-    relavant_chunks = retrieve(question, collection)
+    chunks,metadata = retrieve(question, collection)
     
     print(f"found {len(relavant_chunks)} relavant chunks, building prompt")
-    for i, chunk in enumerate(relavant_chunks):
-        print(f"Chunk {i+1}: {chunk}\n")
+    for i, (chunk,meta) in enumerate(zip(chunks,metadata)):
+        print(f"  [{i+1}] {meta['source']} | {chunk[:50]}...")
         
         
-    prompt = build_prompt(question, relavant_chunks)
+    prompt = build_prompt(question, chunks, metadata)
     
     #sending to llm
-    response = client.chat.completions.create(
-        model = MODEL,
-        messages =[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
+    response = groq_client.chat.completions.create(
+        model=MODEL,
+        messages=[
+            {
+                "role": "system",
+                "content": "You are a helpful assistant for TechLearn India. Always cite your sources."
+            },
+            {
+                "role": "user",
+                "content": prompt
+            }
         ],
-        temperature = 0.3,
-        max_tokens = 512
-        
+        temperature=0.3,
+        max_tokens=512
     )
     answer = response.choices[0].message.content
-    return answer
 
 
 def main():
@@ -440,27 +512,32 @@ def main():
     #get collections
     collection = get_collection()
     #load store knowledge
-    Load_all_docs
-(collection)
+    Load_all_docs(collection)
     
-    print("ask me anything about techlearn,")
-    print("type 'quit' to exit")
+    print(f"✅ Ready! {collection.count()} chunks in database.\n")
+    print("Type 'quit' to exit | 'stats' to see DB info\n")
     
     #ask question
     while True:
-        question = input("you :").strip()
-        
+        question = input("You: ").strip()
+
         if not question:
-            print("Please enter a question.")
             continue
-        
+
         if question.lower() == "quit":
             print("Goodbye!")
             break
-        
-        answer = ask(question,collection)
-        print(f"TechLearn Bot: {answer}\n")
-        print("-" * 55 + "\n")
+
+        elif question.lower() == "stats":
+            print(f"\n📊 ChromaDB Stats:")
+            print(f"   Total chunks: {collection.count()}")
+            print(f"   DB location: {CHROMA_DB_PATH}\n")
+            continue
+
+        answer = ask(question, collection)
+        print(f"\nAssistant: {answer}\n")
+        print("-" * 50)
+
         
         
 if __name__ == "__main__":
