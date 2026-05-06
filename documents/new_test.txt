@@ -1,3 +1,0 @@
-This is a new test document added dynamically.
-It contains information about dynamic file loading.
-The system should detect this new file and process it without reprocessing existing files.
